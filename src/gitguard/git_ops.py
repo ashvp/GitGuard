@@ -1,9 +1,11 @@
 import os
 import json
 import pathlib
+import subprocess
 from git import Repo
 from datetime import datetime
-import typer  # ← ADDED THIS
+import typer
+from rich import print
 
 def is_git_repo():
     return os.path.exists('.git')
@@ -36,15 +38,50 @@ def create_checkpoint():
             check=True,
             capture_output=True
         )
+
+        # Snapshot local changes (stash) without modifying working dir
+        # git stash create returns a commit hash if there are changes
+        stash_result = subprocess.run(
+            ["git", "stash", "create"],
+            capture_output=True,
+            text=True,
+            check=False
+        )
+        stash_hash = stash_result.stdout.strip()
         
-        print(f"[green]✓[/green] Checkpoint created: {backup_branch}")
+        # Save to checkpoints.json
+        checkpoint_dir = pathlib.Path('.git') / 'gitguard'
+        checkpoint_dir.mkdir(parents=True, exist_ok=True)
+        checkpoint_file = checkpoint_dir / 'checkpoints.json'
+        
+        checkpoints = []
+        if checkpoint_file.exists():
+            try:
+                with open(checkpoint_file) as f:
+                    checkpoints = json.load(f)
+            except (json.JSONDecodeError, IOError):
+                pass
+        
+        new_checkpoint = {
+            "ref": backup_branch,
+            "created": timestamp,
+            "stash": stash_hash if stash_hash else None
+        }
+        # Insert at the beginning so rollback_last (checkpoints[0]) gets the latest
+        checkpoints.insert(0, new_checkpoint)
+        
+        with open(checkpoint_file, 'w') as f:
+            json.dump(checkpoints, f, indent=2)
+        
+        msg = f"[green]✓[/green] Checkpoint created: {backup_branch}"
+        if stash_hash:
+            msg += " (with local changes saved)"
+        print(msg)
         return backup_branch
         
     except Exception as e:
         print(f"[yellow]Warning: Could not create checkpoint: {e}[/yellow]")
         return None
-
-import subprocess
 
 def run_git_commands(commands):
     print("\n[bold]Executing Git Commands:[/bold]",commands)
@@ -89,10 +126,15 @@ def rollback_last():
             repo.git.reset('--hard', last['ref'])
             print(f"[bold green]✅ Success![/bold green] Repository rolled back to [cyan]{last['ref']}[/cyan].")
             
-            # Optional: Remove the checkpoint branch after rollback? 
-            # Usually safer to keep it for a bit, but for MVP we can clean up
-            # repo.git.branch('-D', last['ref'])
-            
+            # Restore local changes if they were stashed
+            if last.get('stash'):
+                print("[blue]Restoring local changes...[/blue]")
+                try:
+                    repo.git.stash('apply', last['stash'])
+                    print("[green]✓ Local changes restored.[/green]")
+                except Exception as e:
+                    print(f"[yellow]Warning: Could not restore local changes cleanly: {e}[/yellow]")
+
             # Remove used checkpoint from tracking
             checkpoints.pop(0)
             with open(checkpoint_file, 'w') as f:
@@ -102,3 +144,26 @@ def rollback_last():
     else:
         print("[yellow]Rollback cancelled.[/yellow]")
 
+def get_staged_diff():
+    try:
+        return subprocess.check_output(["git", "diff", "--cached"], text=True)
+    except:
+        return ""
+
+def get_diff():
+    try:
+        # Diff of working directory vs HEAD
+        return subprocess.check_output(["git", "diff", "HEAD"], text=True)
+    except:
+        return ""
+
+def list_backup_branches():
+    repo = get_repo()
+    return [b.name for b in repo.branches if b.name.startswith("gitguard-backup-")]
+
+def delete_branch(branch_name):
+    try:
+        subprocess.run(["git", "branch", "-D", branch_name], check=True, capture_output=True)
+        return True
+    except:
+        return False

@@ -1,0 +1,15 @@
+# GitGuard Checkpoints vs Git Reflog
+
+## Git Reflog
+- **Mechanism:** Records a local history of where your HEAD reference has been.
+- **Intent:** Implicit logging of all movements (commits, resets, checkouts).
+- **Persistence:** Entries expire (default 90 days) and can be garbage collected.
+- **Usage:** Requires searching through logs (`git reflog`) to find the specific index (e.g., `HEAD@{5}`) to restore.
+- **Scope:** strictly local to the machine.
+
+## GitGuard Checkpoints
+- **Mechanism:** Creates an explicit, named backup branch (`gitguard-backup-TIMESTAMP`).
+- **Intent:** Active safety measure created *before* a risky operation is executed by the tool.
+- **Persistence:** Durable branches that exist until explicitly deleted. They are not subject to reflog expiration.
+- **Usage:** "One-Click" undo via `gitguard rollback`. The tool tracks exactly which backup corresponds to the last operation.
+- **Scope:** While currently local, branches *could* be pushed to a remote for backup (though GitGuard keeps them local by default).
