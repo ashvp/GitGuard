@@ -19,3 +19,6 @@ dependencies = [
 
 [project.scripts]
 gitguard = "gitguard.main:app"
+
+[tool.setuptools.packages.find]
+where = ["src"]

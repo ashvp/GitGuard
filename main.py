@@ -1,6 +1,4 @@
-def main():
-    print("Hello from gitguard-cli!")
-
+from src.gitguard.main import app
 
 if __name__ == "__main__":
-    main()
+    app()
