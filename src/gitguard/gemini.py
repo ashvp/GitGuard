@@ -164,7 +164,7 @@ def get_fix_plan(intent: str, failed_commands: list[str], error_message: str, co
     try:
         logger.info(f"Requesting fix plan for error: {error_message}")
         response = client.models.generate_content(
-            model="gemini-2.0-flash-exp",
+            model="gemini-2.5-flash",
             contents=prompt,
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
@@ -202,7 +202,7 @@ def generate_commit_message(diff: str):
     try:
         logger.info("Generating commit message")
         response = client.models.generate_content(
-            model="gemini-2.0-flash-exp",
+            model="gemini-2.5-flash",
             contents=prompt,
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
@@ -241,7 +241,7 @@ def audit_code(diff: str):
     try:
         logger.info("Running code audit")
         response = client.models.generate_content(
-            model="gemini-2.0-flash-exp",
+            model="gemini-2.5-flash",
             contents=prompt,
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
@@ -274,7 +274,7 @@ def explain_changes(diff: str):
     try:
         logger.info("Generating change explanation")
         response = client.models.generate_content(
-            model="gemini-2.0-flash-exp",
+            model="gemini-2.5-flash",
             contents=prompt,
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
@@ -307,7 +307,7 @@ def explain_command(command: str):
     
     try:
         response = client.models.generate_content(
-            model="gemini-2.0-flash-exp",
+            model="gemini-2.5-flash",
             contents=prompt,
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
