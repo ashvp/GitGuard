@@ -49,10 +49,12 @@ def get_git_plan(intent: str, context: dict = None):
 
     context_str = ""
     if context:
+        branches_str = ", ".join(context.get('all_branches', [])) if context.get('all_branches') else "None"
         context_str = f"""
         SYSTEM CONTEXT:
         - OS: {context.get('os', 'Unknown')}
         - Current Branch: {context.get('branch', 'Unknown')}
+        - All Local Branches: {branches_str}
         - Remotes: {context.get('remotes', [])}
         - Has Uncommitted Changes: {context.get('has_uncommitted', False)}
         - Has Untracked Files: {context.get('has_untracked', False)}
@@ -75,7 +77,8 @@ def get_git_plan(intent: str, context: dict = None):
     - NO backticks or $(...) command substitution
     - NO shell variables like $HOME, $USER
     - For Windows: Use forward slashes, avoid bash-specific syntax
-    - Use explicit branch names from SYSTEM CONTEXT, never dynamic substitution
+    - Use explicit branch names from SYSTEM CONTEXT - you can see all branches listed there
+    - IMPORTANT: When deleting multiple branches, create one 'git branch -D <branch>' command per branch
     
     RISK CLASSIFICATION:
     - LOW: Read-only operations (status, log, diff, show, branch -l, remote -v)
@@ -89,7 +92,16 @@ def get_git_plan(intent: str, context: dict = None):
     MISSING INFORMATION HANDLING:
     - If a remote URL is needed but missing, set 'missing_info_prompt' to "Enter remote repository URL (e.g., https://github.com/user/repo.git)"
     - If a branch name is needed, set 'missing_info_prompt' to "Enter branch name"
-    - Use placeholder {{INPUT}} in commands where user input goes
+    - Use placeholder {{{{INPUT}}}} in commands where user input goes
+    - DO NOT ask for input if you can see the information in SYSTEM CONTEXT (like branch names)
+    
+    EXAMPLES:
+    User: "delete all branches except main"
+    Context shows: All Local Branches: main, feature-1, feature-2, old-branch
+    Correct response should include these commands (one per branch to delete):
+      - git branch -D feature-1
+      - git branch -D feature-2
+      - git branch -D old-branch
     
     IMPORTANT: Each command should be a complete, standalone git command that can be executed independently.
     """
@@ -123,10 +135,12 @@ def get_fix_plan(intent: str, failed_commands: list[str], error_message: str, co
 
     context_str = ""
     if context:
+        branches_str = ", ".join(context.get('all_branches', [])) if context.get('all_branches') else "None"
         context_str = f"""
         SYSTEM CONTEXT:
         - OS: {context.get('os', 'Unknown')}
         - Current Branch: {context.get('branch', 'Unknown')}
+        - All Local Branches: {branches_str}
         - Remotes: {context.get('remotes', [])}
         - Has Uncommitted Changes: {context.get('has_uncommitted', False)}
         """
@@ -143,6 +157,7 @@ def get_fix_plan(intent: str, failed_commands: list[str], error_message: str, co
     TASK: Provide a CORRECTED sequence of commands.
     
     ANALYSIS GUIDELINES:
+    - Look at the All Local Branches list in SYSTEM CONTEXT to see available branches
     - If error mentions "unrelated histories": suggest `git pull origin <branch> --allow-unrelated-histories`
     - If error mentions "no upstream branch": suggest setting upstream with `git push -u origin <branch>`
     - If error mentions "remote URL": set 'missing_info_prompt' to ask for URL
